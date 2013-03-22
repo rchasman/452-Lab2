@@ -180,12 +180,10 @@ ProcessSetResult (PCB * pcb, uint32 result)
 //----------------------------------------------------------------------
 // You should modify this function to use 4.4BSD scheduling policy
 //
-void
-ProcessSchedule ()
-{
+void ProcessSchedule () {
+  PCB *pcb;
+  int i;
   total_num_quanta++; // total_num_quanta is a global uint32 variable initialized to zero.
-  PCB           *pcb;
-  int           i;
 
   dbprintf ('p', "Now entering ProcessSchedule (cur=0x%x, %d ready)\n",
             currentPCB, QueueLength (&runQueue));
@@ -198,7 +196,6 @@ ProcessSchedule ()
   }
 
   // Move the front of the queue to the end, if it is the running process.
-
   pcb = (PCB *)((QueueFirst (&runQueue))->object);
   if (pcb == currentPCB)
   {
