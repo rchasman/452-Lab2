@@ -48,11 +48,13 @@ typedef struct PCB {
   Link		l;		// Used for keeping PCB in queues
   // put in data used for your scheduling algorithm here
   int p_nice;
+  int p_info;
+  int q_count;
   int load = 1;
-  int estcpu;
-  int qtimer;
-  int PUSER;
-  int prio;
+  int runtime;
+  int sleeptime;
+  float estcpu;
+  float prio;
 } PCB;
 
 // Offsets of various registers from the stack pointer in the register

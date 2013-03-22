@@ -15,6 +15,7 @@
 #include "filesys.h"
 float MyFuncRetZero();
 
+
 // Lab3: These two string are defined for you to print out your
 // timming analysis.  Do not use your own strings.
 // Your printf statement should be printf(TIMESTRING1,data1...);...
@@ -57,6 +58,7 @@ static processQuantum = DLX_PROCESS_QUANTUM;
 // String listing debugging options to print out.
 char	debugstr[200];
 
+static int total_num_quanta;
 
 //----------------------------------------------------------------------
 //
@@ -181,6 +183,7 @@ ProcessSetResult (PCB * pcb, uint32 result)
 void
 ProcessSchedule ()
 {
+  total_num_quanta++; // total_num_quanta is a global uint32 variable initialized to zero.
   PCB           *pcb;
   int           i;
 
