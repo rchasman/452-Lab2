@@ -197,6 +197,7 @@ void ProcessSchedule () {
 
   // Move the front of the queue to the end, if it is the running process.
   pcb = (PCB *)((QueueFirst (&runQueue))->object);
+  printf(total_num_quanta);
   if (pcb == currentPCB)
   {
     QueueRemove (&pcb->l);

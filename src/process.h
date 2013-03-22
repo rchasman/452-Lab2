@@ -35,7 +35,6 @@
 
 typedef	void (*VoidFunc)();
 
-
 // Process control block
 typedef struct PCB {
   uint32	*currentSavedFrame; // -> current saved frame.  MUST BE 1ST!
