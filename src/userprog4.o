@@ -5,7 +5,7 @@ LC0:
 	.ascii "Setting number = %d\n\000"
 	.align 2
 LC1:
-	.ascii "userprog5.dlx.obj\000"
+	.ascii "userprog4.dlx.obj\000"
 	.align 2
 LC2:
 	.ascii "%c%d\n\000"

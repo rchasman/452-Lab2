@@ -49,11 +49,12 @@ typedef struct PCB {
   int p_nice;
   int p_info;
   int q_count;
-  int load = 1;
-  int runtime;
-  int sleeptime;
+  double load;
+  double runtime;
+  double sleeptime;
   double estcpu;
   double prio;
+  double tail;
 } PCB;
 
 // Offsets of various registers from the stack pointer in the register
@@ -84,6 +85,7 @@ extern void	ProcessSuspend (PCB *);
 extern void	ProcessWakeup (PCB *);
 extern void	ProcessSetResult (PCB *, uint32);
 extern void	ProcessSleep ();
+extern uint32	my_timer_get ();
 extern unsigned GetCurrentPid();
 extern unsigned getpid();
 void process_create(int p_nice, int p_info,char *name, ...);

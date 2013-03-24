@@ -12,7 +12,7 @@ LC0_LF0:
 .ascii "Setting number = %d\n\000"
 .align 2
 LC1_LF0:
-.ascii "userprog5.dlx.obj\000"
+.ascii "userprog4.dlx.obj\000"
 .align 2
 LC2_LF0:
 .ascii "%c%d\n\000"

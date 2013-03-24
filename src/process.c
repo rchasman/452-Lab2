@@ -13,10 +13,11 @@
 //#include "synch.h"
 #include "memory.h"
 #include "filesys.h"
+
 float MyFuncRetZero();
+int procCount();
 
-
-// Lab3: These two string are defined for you to print out your
+// Lab2: These two string are defined for you to print out your
 // timming analysis.  Do not use your own strings.
 // Your printf statement should be printf(TIMESTRING1,data1...);...
 // note that we need to print the floating point value by itself,
@@ -58,7 +59,13 @@ static processQuantum = DLX_PROCESS_QUANTUM;
 // String listing debugging options to print out.
 char	debugstr[200];
 
-static int total_num_quanta;
+int total_num_quanta = 0;
+
+uint32 my_timer_get(){
+    uint32 temp = total_num_quanta * 100 + total_num_quanta * 1;
+    return temp;
+}
+
 
 //----------------------------------------------------------------------
 //
@@ -183,29 +190,122 @@ ProcessSetResult (PCB * pcb, uint32 result)
 void ProcessSchedule () {
   PCB *pcb;
   int i;
-  total_num_quanta++; // total_num_quanta is a global uint32 variable initialized to zero.
+  int num_empty = 0;
+  Queue tmpQueue;
+
+  /////////////////////
+  total_num_quanta++;
+  QueueInit(&tmpQueue);
+  /////////////////////
 
   dbprintf ('p', "Now entering ProcessSchedule (cur=0x%x, %d ready)\n",
             currentPCB, QueueLength (&runQueue));
   // The OS exits if there's no runnable process.  This is a feature, not a
   // bug.  An easy solution to allowing no runnable "user" processes is to
   // have an "idle" process that's simply an infinite loop.
-  if (QueueEmpty (&runQueue)) {
-    printf ("No runnable processes - exiting!\n");
-    exitsim (); // NEVER RETURNS
+  for(i = 0; i < NUM_OF_RUNQUEUE; i++){
+    if (QueueEmpty (&runQueue[i])) {
+        num_empty++;
+    }
   }
 
+  if (num_empty == NUM_OF_RUNQUEUE) {
+      printf ("No runnable processes - exiting!\n");
+      exitsim (); // NEVER RETURNS
+  }
+
+  for(i = 0; i < NUM_OF_RUNQUEUE; i++){
+    if (!QueueEmpty (&runQueue[i])) {
+        break;
+    }
+  }
   // Move the front of the queue to the end, if it is the running process.
-  pcb = (PCB *)((QueueFirst (&runQueue))->object);
-  printf(total_num_quanta);
-  if (pcb == currentPCB)
-  {
+  pcb = (PCB *)((QueueFirst (&runQueue[i]))->object);
+  if (pcb == currentPCB) {
     QueueRemove (&pcb->l);
-    QueueInsertLast (&runQueue, &pcb->l);
+    pcb->q_count++;
+    pcb->estcpu++;
+
+    if(pcb->p_info == 1){
+        printf(TIMESTRING1, GetCurrentPid());
+        printf(TIMESTRING2, (double) pcb->q_count*101/1000);
+        printf(TIMESTRING3, GetCurrentPid(), (int)pcb->prio);
+    }
+
+    if((pcb->q_count % 4) == 0) {
+        //recalculate the priority
+        pcb->prio = PUSER + (pcb->estcpu/4) + 2 * pcb->p_nice;
+        //put in appropriate queue
+    }
+    QueueInsertLast (&runQueue[(int) (pcb->prio/4)], &pcb->l);
+  }
+
+  if(total_num_quanta % 10 == 0){
+      //recalculate all prios of all processes
+      //check tails
+      for(i = 0; i < NUM_OF_RUNQUEUE; i++){
+          if (!QueueEmpty (&runQueue[i])) {
+              pcb = (PCB *)((QueueLast (&runQueue[i]))->object);
+              pcb->tail = 1;
+          }
+      }
+
+      for(i = 0; i < NUM_OF_RUNQUEUE; i++){
+          if (!QueueEmpty (&runQueue[i])) {
+              while(!QueueEmpty (&runQueue[i])){
+                  pcb = (PCB *)(QueueFirst (&runQueue[i])->object);
+                  pcb->estcpu = (2*pcb->load/(2*pcb->load +1) * pcb->estcpu + pcb->p_nice);
+                  pcb->prio = PUSER + (pcb->estcpu/4) + 2 * pcb->p_nice;
+                  QueueRemove (&pcb->l);
+                  QueueInsertLast (&tmpQueue, &pcb->l);
+                  if(pcb->tail == 1){
+                      break;
+                  }
+              }
+              while(!QueueEmpty(&tmpQueue)){
+                  pcb = (PCB *)(QueueFirst (&tmpQueue)->object);
+                  QueueRemove(&pcb->l);
+                  QueueInsertLast (&runQueue[(int) (pcb->prio/4)], &pcb->l);
+              }
+          }
+      }
+
+      for(i = 0; i < NUM_OF_RUNQUEUE; i++){
+          if (!QueueEmpty (&runQueue[i])) {
+              while(!QueueEmpty (&runQueue[i])){
+                  pcb = (PCB *)(QueueFirst (&runQueue[i])->object);
+                  pcb->tail = 0;
+                  QueueRemove(&pcb->l);
+                  QueueInsertLast (&tmpQueue, &pcb->l);
+              }
+              while(!QueueEmpty(&tmpQueue)){
+                  pcb = (PCB *)(QueueFirst (&tmpQueue)->object);
+                  QueueRemove(&pcb->l);
+                  QueueInsertLast (&runQueue[i], &pcb->l);
+              }
+          }
+      }
+      for(i = 0; i < NUM_OF_RUNQUEUE; i++){
+          if (!QueueEmpty (&runQueue[i])) {
+              pcb = (PCB *)(QueueFirst (&runQueue[i])->object);
+              if (pcb == currentPCB){
+                  QueueRemove(&pcb->l);
+                  QueueInsertLast (&runQueue[i], &pcb->l);
+              }
+              currentPCB = (PCB *)(QueueFirst (&runQueue[i])->object);
+              break;
+          }
+      }
+  }
+
+  for(i = 0; i < NUM_OF_RUNQUEUE; i++){
+    if (!QueueEmpty (&runQueue[i])) {
+        break;
+    }
   }
 
   // Now, run the one at the head of the queue.
-  pcb = (PCB *)((QueueFirst (&runQueue))->object);
+  pcb = (PCB *)((QueueFirst (&runQueue[i]))->object);
   currentPCB = pcb;
   dbprintf ('p',"About to switch to PCB 0x%x,flags=0x%x @ 0x%x\n",
             pcb, pcb->flags,
@@ -245,6 +345,7 @@ ProcessSuspend (PCB *suspend)
 	  "Trying to suspend a non-running process!\n");
   ProcessSetStatus (suspend, PROCESS_STATUS_WAITING);
   QueueRemove (&suspend->l);
+  suspend->sleeptime = my_timer_get();
   QueueInsertLast (&waitQueue, &suspend->l);
 }
 
@@ -261,19 +362,29 @@ ProcessSuspend (PCB *suspend)
 //	the currently running process is unaffected.
 //
 //----------------------------------------------------------------------
+
 void
 ProcessWakeup (PCB *wakeup)
 {
+  int i, load, total;
+  int sleep = my_timer_get() - wakeup->sleeptime;
   dbprintf ('p',"Waking up PCB 0x%x.\n", wakeup);
   // Make sure it's not yet a runnable process.
   ASSERT (wakeup->flags & PROCESS_STATUS_WAITING,
           "Trying to wake up a non-sleeping process!\n");
   ProcessSetStatus (wakeup, PROCESS_STATUS_RUNNABLE);
   QueueRemove (&wakeup->l);
-  QueueInsertLast (&runQueue, &wakeup->l);
-
+  if (sleep >= 1) {
+    total = 0;
+    total = (2 * wakeup->load) / (2 * wakeup->load + 1);
+    for (i = 1; i < sleep; i++) {
+        total *= total;
+    }
+    wakeup->estcpu = wakeup->estcpu * total;
+    wakeup->prio = PUSER + (wakeup->estcpu/4) + 2*wakeup->p_nice;
+  }
+  QueueInsertLast (&runQueue[(int)(wakeup->prio/4)], &wakeup->l);
 }
-
 
 //----------------------------------------------------------------------
 //
@@ -372,7 +483,6 @@ ProcessFork (VoidFunc func, uint32 param, int p_nice, int p_info,char *name, int
   uint32 dum[MAX_ARGS+8], count, offset;
   char *str;
 
-
   intrs = DisableIntrs ();
   dbprintf ('I', "Old interrupt value was 0x%x.\n", intrs);
   dbprintf ('p', "Entering ProcessFork args=0x%x 0x%x %s %d\n", func,
@@ -424,7 +534,28 @@ ProcessFork (VoidFunc func, uint32 param, int p_nice, int p_info,char *name, int
   //---------------------------------------
   // Lab3: initialized pcb member for your scheduling algorithm here
   //--------------------------------------
-
+  if(isUser){
+      if (p_nice < 0 || p_nice > 19){
+          pcb->p_nice = 0;
+      } else {
+          pcb->p_nice = p_nice;
+      }
+      pcb->prio = PUSER;
+  } else {
+      if (p_nice < -20 || p_nice > 19){
+          pcb->p_nice = 0; // out of bounds p_nice = 0
+      } else {
+          pcb->p_nice = p_nice;
+      }
+      pcb->prio = 0;
+  }
+  pcb->runtime = 0;
+  pcb->sleeptime = 0;
+  pcb->estcpu = 0;
+  pcb->q_count = 0;
+  pcb->p_info = p_info;
+  pcb->load = 1;
+  pcb->tail = 0;
 
   //----------------------------------------------------------------------
   // Stacks grow down from the top.  The current system stack pointer has
@@ -437,6 +568,7 @@ ProcessFork (VoidFunc func, uint32 param, int p_nice, int p_info,char *name, int
   pcb->sysStackPtr = stackframe;
   // The current stack frame pointer is set to the same thing.
   pcb->currentSavedFrame = stackframe;
+
 
   dbprintf ('p',
 	    "Setting up PCB @ 0x%x (sys stack=0x%x, mem=0x%x, size=0x%x)\n",
